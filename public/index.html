@@ -197,7 +197,9 @@
       var GAME_H = 768;
       var gameReady = false;
 
+      var isAdjusting = false;
       function fitGameCanvas() {
+        if (isAdjusting) return;
         var canvas = document.getElementById("canvas");
         if (!canvas) return;
 
@@ -218,6 +220,11 @@
         canvas.height = newH;
         canvas.style.width = newW + "px";
         canvas.style.height = newH + "px";
+
+        // Dispara evento sintético para notificar o SDL2/WASM a atualizar a viewport WebGL
+        isAdjusting = true;
+        window.dispatchEvent(new Event("resize"));
+        isAdjusting = false;
       }
 
       window.addEventListener("resize", function () {

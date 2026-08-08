@@ -24,6 +24,16 @@ class PacketRewriter {
     return { packet, rewritten: false };
   }
 
+  // The WASM client used to send the character-list request as plaintext
+  // 0xF3 0x0D, which OpenMU ignores (it only answers 0xF3 0x00). That was fixed
+  // in the client itself (WasmSendRequestCharacterList sends 0xF3 0x00, and
+  // WasmConnectionSend Xor32-encrypts every packet, C1 included). A byte-level
+  // rewrite here is therefore wrong now: it would corrupt the encrypted packet,
+  // and the server would decrypt it to a different sub-code and drop it.
+  processClientPacket(packet) {
+    return { packet, rewritten: false };
+  }
+
   _rewriteConnectionInfo(packet) {
     if (packet.length < 22) {
       console.warn(

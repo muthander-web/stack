@@ -47,6 +47,21 @@ const server = http.createServer((req, res) => {
       return;
     }
 
+    // Revalidate-always caching: the browser may keep a 534MB Main.data
+    // heuristically cached for a long time otherwise, which makes new builds
+    // look like "nothing changed". With no-cache + Last-Modified the browser
+    // asks again on every load and only re-downloads when the file changed.
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Last-Modified", stats.mtime.toUTCString());
+
+    const ifModifiedSince = req.headers["if-modified-since"];
+    const mtimeMs = Math.floor(stats.mtimeMs / 1000) * 1000;
+    if (ifModifiedSince && new Date(ifModifiedSince).getTime() >= mtimeMs) {
+      res.writeHead(304);
+      res.end();
+      return;
+    }
+
     res.writeHead(200, {
       "Content-Type": contentType,
       "Content-Length": stats.size,
