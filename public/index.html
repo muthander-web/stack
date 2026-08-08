@@ -203,18 +203,8 @@
         var canvas = document.getElementById("canvas");
         if (!canvas) return;
 
-        var ratio = GAME_W / GAME_H;
-        var w = window.innerWidth;
-        var h = window.innerHeight;
-
-        var newW, newH;
-        if (w / h > ratio) {
-          newH = h;
-          newW = Math.round(h * ratio);
-        } else {
-          newW = w;
-          newH = Math.round(w / ratio);
-        }
+        var newW = window.innerWidth;
+        var newH = window.innerHeight;
 
         canvas.width = newW;
         canvas.height = newH;
