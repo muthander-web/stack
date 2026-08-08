@@ -19,14 +19,17 @@
           system-ui,
           -apple-system,
           sans-serif;
+        cursor: none;
       }
       canvas#canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 1024px;
+        height: 768px;
         display: none;
+        cursor: none;
       }
       #info {
         display: flex;
@@ -102,16 +105,13 @@
 
     <div id="info">
       <h1>OpenMU Browser Stack</h1>
-      <p>Server infrastructure is running. No WASM client found.</p>
+      <p>Loading WASM client (<code>Main.js</code> / <code>Main.wasm</code>)...</p>
       <p>
-        Compile a MU Online client (e.g.
-        <a href="https://github.com/sven-n/MuMain" target="_blank">MuMain</a>)
-        with Emscripten, then place the output files (<code>.js</code>,
-        <code>.wasm</code>, <code>.data</code>) in the
-        <code>public/</code> folder and add a <code>&lt;script&gt;</code> tag
-        below.
+        If this message stays on screen, the Emscripten runtime did not reach
+        <code>onRuntimeInitialized</code>. Open the browser console for the
+        actual failure.
       </p>
-      <span class="tag">WebSocket proxy :7100 &middot; Web :8080</span>
+      <span class="tag">WebSocket proxy :7100 &middot; Web :8081</span>
     </div>
 
     <div id="loading">
@@ -122,7 +122,22 @@
     <script>
       var PROXY_WS_URL = "ws://127.0.0.1:7100";
 
+      window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled Rejection:', event.promise);
+        console.error('Reason:', event.reason);
+        if (event.reason && event.reason.name === 'ExitStatus') {
+          console.error('ExitStatus value:', event.reason.status);
+        }
+      });
+
       var Module = {
+        diag: /[?&]diag(?:=|&|$)/.test(window.location.search),
+
+        locateFile: function(path, prefix) {
+          if (path.endsWith('.data')) return path + '?v=20260808c';
+          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260808c';
+          return prefix + path;
+        },
         canvas: document.getElementById("canvas"),
 
         websocket: { url: PROXY_WS_URL },
@@ -166,19 +181,52 @@
           document.getElementById("info").style.display = "none";
           document.getElementById("canvas").style.display = "block";
           console.log("[OpenMU] WASM runtime initialized");
+
+          requestAnimationFrame(function () {
+            gameReady = true;
+            fitGameCanvas();
+          });
         },
       };
 
-      function resize() {
-        Module.canvas.width = window.innerWidth;
-        Module.canvas.height = window.innerHeight;
+      // --- Resolução dinâmica: o canvas real (bitmap) cresce/encolhe para
+      // caber na janela do navegador, mantendo a proporção nativa 4:3 do
+      // jogo (1024x768). Sem teto artificial: pode crescer além do nativo. ---
+      var GAME_W = 1024;
+      var GAME_H = 768;
+      var gameReady = false;
+
+      function fitGameCanvas() {
+        var canvas = document.getElementById("canvas");
+        if (!canvas) return;
+
+        var ratio = GAME_W / GAME_H;
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+
+        var newW, newH;
+        if (w / h > ratio) {
+          newH = h;
+          newW = Math.round(h * ratio);
+        } else {
+          newW = w;
+          newH = Math.round(w / ratio);
+        }
+
+        canvas.width = newW;
+        canvas.height = newH;
+        canvas.style.width = newW + "px";
+        canvas.style.height = newH + "px";
       }
-      window.addEventListener("resize", resize);
-      resize();
+
+      window.addEventListener("resize", function () {
+        if (gameReady) fitGameCanvas();
+      });
+      window.addEventListener("orientationchange", function () {
+        if (gameReady) fitGameCanvas();
+      });
     </script>
 
-    <!--
-    Add your compiled WASM client script here. Example:
-    <script async src="MuMain.js"></script>
-  --></body>
+    <script async src="Main.js?v=20260808c"></script>
+  </body>
 </html>
