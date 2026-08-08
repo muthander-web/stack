@@ -178,15 +178,16 @@
         },
 
         onRuntimeInitialized: function () {
-          document.getElementById("info").style.display = "none";
-          document.getElementById("canvas").style.display = "block";
-          console.log("[OpenMU] WASM runtime initialized");
-
-          requestAnimationFrame(function () {
-            gameReady = true;
-            fitGameCanvas();
-          });
-        },
+  document.getElementById("info").style.display = "none";
+  document.getElementById("canvas").style.display = "block";
+  console.log("[OpenMU] WASM runtime initialized");
+  requestAnimationFrame(function () {
+    gameReady = true;
+    fitGameCanvas();
+    setTimeout(fitGameCanvas, 300);
+    setTimeout(fitGameCanvas, 1000);
+  });
+},
       };
 
       // --- Resolução dinâmica: o canvas real (bitmap) cresce/encolhe para
