@@ -135,7 +135,7 @@
 
         locateFile: function(path, prefix) {
           if (path.endsWith('.data')) return path + '?v=20260808c';
-          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260808c';
+          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260809_3b0bf55';
           return prefix + path;
         },
         canvas: document.getElementById("canvas"),
@@ -190,13 +190,18 @@
 },
       };
 
-      // --- Resolução dinâmica: o canvas real (bitmap) cresce/encolhe para
-      // caber na janela do navegador, mantendo a proporção nativa 4:3 do
-      // jogo (1024x768) com letterbox quando necessário. Sem teto
-      // artificial: pode crescer além do nativo em janelas grandes.
-      // Validado: numa janela 1167x909 o canvas mediu 1167x875 (1.334≈4:3).
-      // NÃO usa evento "resize" sintético — o SDL3/WASM detecta a mudança
-      // do canvas sozinho; dispatch sintético já causou problemas. ---
+      // --- Enquadramento responsivo: o framebuffer fica SEMPRE no nativo
+      // 4:3 do jogo (1024x768, config.ini) e só a apresentação (CSS) escala
+      // de forma uniforme e centralizada (letterbox) para caber na janela.
+      //
+      // POR QUE NÃO REDIMENSIONAR O BITMAP: o jogo só muda a viewport ao
+      // receber SDL_EVENT_WINDOW_RESIZED, e esse caminho (HandleWindowResize
+      // → ReinitializeFonts/CreateFontW) estoura memória no build WASM
+      // atual (RuntimeError: memory access out of bounds em wasm-function
+      // [647]) — resultando em tela preta. Redimensionar o bitmap SEM o jogo
+      // saber deixa a cena presa num canto (viewport nativa num canvas
+      // maior). Manter o bitmap nativo evita os dois: o jogo renderiza
+      // 1024x768 por inteiro e o CSS enquadra sem distorção. ---
       var GAME_W = 1024;
       var GAME_H = 768;
       var gameReady = false;
@@ -205,24 +210,20 @@
         var canvas = document.getElementById("canvas");
         if (!canvas) return;
 
-        // Maior retângulo 4:3 que cabe na janela (letterbox).
-        var ratio = GAME_W / GAME_H;
-        var w = window.innerWidth;
-        var h = window.innerHeight;
-
-        var newW, newH;
-        if (w / h > ratio) {
-          newH = h;
-          newW = Math.round(h * ratio);
-        } else {
-          newW = w;
-          newH = Math.round(w / ratio);
+        // Framebuffer nativo fixo (o SDL/WASM também o define assim).
+        if (canvas.width !== GAME_W || canvas.height !== GAME_H) {
+          canvas.width = GAME_W;
+          canvas.height = GAME_H;
         }
 
-        // Redimensiona o bitmap REAL (canvas.width/height, não só CSS) —
-        // o jogo acompanha e renderiza nessa resolução.
-        canvas.width = newW;
-        canvas.height = newH;
+        // Escala uniforme 4:3 (letterbox) — sem esticar/comprimir; a
+        // centralização vem do CSS (top/left 50% + translate(-50%,-50%)).
+        var scale = Math.min(
+          window.innerWidth / GAME_W,
+          window.innerHeight / GAME_H,
+        );
+        var newW = Math.max(1, Math.round(GAME_W * scale));
+        var newH = Math.max(1, Math.round(GAME_H * scale));
         canvas.style.width = newW + "px";
         canvas.style.height = newH + "px";
       }
@@ -235,8 +236,6 @@
       });
     </script>
 
-    <script async src="Main.js?v=20260808_char_fov54"></script>
-    <script src="hud-mobile.js"></script>
-    <script src="touch-controls.js"></script>
+    <script async src="Main.js?v=20260809_8h"></script>
   </body>
 </html>
