@@ -113,15 +113,18 @@
     var snap = getSnapshot();
     if (!snap) return;
 
-    // Só exibe o HUD quando o personagem está ativo no mundo.
-    // Na tela de seleção de personagem (isLive === false) ele fica oculto.
-    if (snap.isLive !== true) {
+    // Só exibe o HUD com DADOS REAIS do personagem no mundo. Na tela de
+    // seleção de personagem o isLive pode vir true com o hero ainda vazio
+    // (nome "" / level 0 / pos 0,0) — nesse caso permanece oculto.
+    var name = String(snap.name || "").trim();
+    var level = Number(snap.level || 0);
+    if (snap.isLive !== true || name === "" || !isFinite(level) || level <= 0) {
       hudEl.style.display = "none";
       return;
     }
 
-    nameEl.textContent = String(snap.name || "-");
-    levelEl.textContent = "Level " + Number(snap.level || 0);
+    nameEl.textContent = name;
+    levelEl.textContent = "Level " + level;
     hpFillEl.fill.style.width = pct(snap.hp, snap.hpMax) + "%";
     mpFillEl.fill.style.width = pct(snap.mp, snap.mpMax) + "%";
 

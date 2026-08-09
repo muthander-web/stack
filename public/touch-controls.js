@@ -171,8 +171,11 @@
     // --- Joystick (base + knob) ---
     stickEl = document.createElement("div");
     stickEl.style.position = "fixed";
-    stickEl.style.left = "20px";
-    stickEl.style.bottom = "24px";
+    // Safe-area: mantém o joystick acima da barra de gestos / notch em
+    // paisagem (exige viewport-fit=cover no meta do index.html; sem isso
+    // o env() retorna 0 e o fallback mantém o deslocamento atual).
+    stickEl.style.left = "calc(20px + env(safe-area-inset-left, 0px))";
+    stickEl.style.bottom = "calc(24px + env(safe-area-inset-bottom, 0px))";
     stickEl.style.width = "110px";
     stickEl.style.height = "110px";
     stickEl.style.borderRadius = "50%";
@@ -199,8 +202,10 @@
     // --- Botão de ataque (área de toque 72x72 ≥ 56x56 mínimos) ---
     attackEl = document.createElement("div");
     attackEl.style.position = "fixed";
-    attackEl.style.right = "22px";
-    attackEl.style.bottom = "26px";
+    // Safe-area: idem joystick — o botão de ataque fica acima do home
+    // indicator em paisagem.
+    attackEl.style.right = "calc(22px + env(safe-area-inset-right, 0px))";
+    attackEl.style.bottom = "calc(26px + env(safe-area-inset-bottom, 0px))";
     attackEl.style.width = "72px";
     attackEl.style.height = "72px";
     attackEl.style.borderRadius = "50%";

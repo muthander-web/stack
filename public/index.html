@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>OpenMU Browser Stack</title>
     <style>
       * {
@@ -135,7 +135,7 @@
 
         locateFile: function(path, prefix) {
           if (path.endsWith('.data')) return path + '?v=20260808c';
-          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260809_3b0bf55';
+          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260809_tourfix2';
           return prefix + path;
         },
         canvas: document.getElementById("canvas"),
@@ -236,6 +236,8 @@
       });
     </script>
 
-    <script async src="Main.js?v=20260809_8h"></script>
+    <script async src="Main.js?v=20260809_tourfix2"></script>
+    <script src="hud-mobile.js"></script>
+    <script src="touch-controls.js"></script>
   </body>
 </html>
