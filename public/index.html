@@ -192,29 +192,39 @@
 
       // --- Resolução dinâmica: o canvas real (bitmap) cresce/encolhe para
       // caber na janela do navegador, mantendo a proporção nativa 4:3 do
-      // jogo (1024x768). Sem teto artificial: pode crescer além do nativo. ---
+      // jogo (1024x768) com letterbox quando necessário. Sem teto
+      // artificial: pode crescer além do nativo em janelas grandes.
+      // Validado: numa janela 1167x909 o canvas mediu 1167x875 (1.334≈4:3).
+      // NÃO usa evento "resize" sintético — o SDL3/WASM detecta a mudança
+      // do canvas sozinho; dispatch sintético já causou problemas. ---
       var GAME_W = 1024;
       var GAME_H = 768;
       var gameReady = false;
 
-      var isAdjusting = false;
       function fitGameCanvas() {
-        if (isAdjusting) return;
         var canvas = document.getElementById("canvas");
         if (!canvas) return;
 
-        var newW = window.innerWidth;
-        var newH = window.innerHeight;
+        // Maior retângulo 4:3 que cabe na janela (letterbox).
+        var ratio = GAME_W / GAME_H;
+        var w = window.innerWidth;
+        var h = window.innerHeight;
 
+        var newW, newH;
+        if (w / h > ratio) {
+          newH = h;
+          newW = Math.round(h * ratio);
+        } else {
+          newW = w;
+          newH = Math.round(w / ratio);
+        }
+
+        // Redimensiona o bitmap REAL (canvas.width/height, não só CSS) —
+        // o jogo acompanha e renderiza nessa resolução.
         canvas.width = newW;
         canvas.height = newH;
         canvas.style.width = newW + "px";
         canvas.style.height = newH + "px";
-
-        // Dispara evento sintético para notificar o SDL2/WASM a atualizar a viewport WebGL
-        isAdjusting = true;
-        window.dispatchEvent(new Event("resize"));
-        isAdjusting = false;
       }
 
       window.addEventListener("resize", function () {
@@ -226,5 +236,7 @@
     </script>
 
     <script async src="Main.js?v=20260808_char_fov54"></script>
+    <script src="hud-mobile.js"></script>
+    <script src="touch-controls.js"></script>
   </body>
 </html>
