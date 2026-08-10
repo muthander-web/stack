@@ -134,8 +134,8 @@
         diag: /[?&]diag(?:=|&|$)/.test(window.location.search),
 
         locateFile: function(path, prefix) {
-          if (path.endsWith('.data')) return path + '?v=20260808c';
-          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260810_mobile9';
+          if (path.endsWith('.data')) return path + '?v=20260810_audio1';
+          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260810_audio1';
           return prefix + path;
         },
         canvas: document.getElementById("canvas"),
@@ -236,7 +236,7 @@
       });
     </script>
 
-    <script async src="Main.js?v=20260810_mobile9"></script>
+    <script async src="Main.js?v=20260810_audio1"></script>
     <script src="hud-mobile.js?v=20260809m7"></script>
     <script src="touch-controls.js?v=20260810m9"></script>
   </body>
