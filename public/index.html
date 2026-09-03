@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>OpenMU Browser Stack</title>
+    <title>Mu Zord v20260902_uirestore</title>
     <style>
       * {
         margin: 0;
@@ -134,8 +134,8 @@
         diag: /[?&]diag(?:=|&|$)/.test(window.location.search),
 
         locateFile: function(path, prefix) {
-          if (path.endsWith('.data')) return path + '?v=20260810_audio1';
-          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260810_audio1';
+          if (path.endsWith('.data')) return path + '?v=20260815_gaiolas3';
+          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260902_uirestore';
           return prefix + path;
         },
         canvas: document.getElementById("canvas"),
@@ -236,8 +236,10 @@
       });
     </script>
 
-    <script async src="Main.js?v=20260810_audio1"></script>
+    <script async src="Main.js?v=20260902_uirestore"></script>
+    <script>console.log("[Mu Zord] build 20260902_uirestore — se nao ve esta linha no console, recarregue com Ctrl+Shift+R (cache antigo)");</script>
     <script src="hud-mobile.js?v=20260809m7"></script>
     <script src="touch-controls.js?v=20260810m9"></script>
+    <script src="click-to-walk.js?v=20260815_ancora2"></script>
   </body>
 </html>

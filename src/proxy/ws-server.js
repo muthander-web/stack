@@ -10,7 +10,25 @@ const path = require("path");
 // The proxy may be auto-restarted under the user's own session, so every instance
 // appends to the same file. Only codes of interest are written to keep it small.
 const NPC_LOG = path.join(__dirname, "../../proxy-npc.log");
-const BOX_CODES = new Set([0x30, 0x31, 0x32, 0x33, 0x34, 0x13, 0x45, 0xF3]);
+const BOX_CODES = new Set([0x30, 0x31, 0x32, 0x33, 0x34, 0x13, 0x45, 0xF3, 0x12, 0x14]);
+
+function decodeCreateCharacter(packet) {
+  // Decode 0x12 (AddCharacterToScopeExtended) against the WASM client struct
+  // PCREATE_CHARACTER_EXTENDED: header(C2 00 LL 12) + Key(W@4) + PosX(6) +
+  // PosY(7) + TargetX(8) + TargetY(9) + RotAndHeroState(10) + [pad 11] +
+  // AttackSpeed(12-13 LE) + MagicSpeed(14-15 LE) + ID(16-25) + Class(26) +
+  // Flags(27) + Equipment(28-52) + BuffCount(53)
+  if (packet.length < 30) return null;
+  const key = (packet[5] << 8) | packet[4];
+  const atk = (packet[13] << 8) | packet[12];
+  const mgc = (packet[15] << 8) | packet[14];
+  let name = "";
+  for (let i = 16; i < 26; i++) {
+    if (packet[i] === 0) break;
+    name += String.fromCharCode(packet[i]);
+  }
+  return `spawn=${(key & 0x8000) ? 1 : 0} key=${key & 0x7fff} pos=${packet[6]},${packet[7]} tgt=${packet[8]},${packet[9]} rot=${packet[10] >> 4} heroState=${packet[10] & 0xf} atk=${atk} mgc=${mgc} name="${name}" class=${packet[26]} flags=0x${packet[27].toString(16)} eq=${Array.from(packet.slice(28, 53)).map(b => b.toString(16).padStart(2, "0")).join(" ")} buffs=${packet[53] || 0}`;
+}
 
 function logPacketLine(tag, dir, packet) {
   if (!packet || packet.length < 3) return;
@@ -18,7 +36,8 @@ function logPacketLine(tag, dir, packet) {
   if (!id) return;
   const code = id.code || 0;
   if (BOX_CODES.has(code)) {
-    const line = `${new Date().toISOString()} [${tag}] ${dir} ${PacketParser.formatPacket(packet, 24)}`;
+    const extra = (dir === "S2C" && code === 0x12) ? " | " + decodeCreateCharacter(packet) : "";
+    const line = `${new Date().toISOString()} [${tag}] ${dir} ${PacketParser.formatPacket(packet, 64)}${extra}`;
     console.log(line);
     try { fs.appendFileSync(NPC_LOG, line + "\n"); } catch (e) { /* ignore */ }
   }

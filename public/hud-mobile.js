@@ -128,7 +128,11 @@
     hpFillEl.fill.style.width = pct(snap.hp, snap.hpMax) + "%";
     mpFillEl.fill.style.width = pct(snap.mp, snap.mpMax) + "%";
 
-    hudEl.style.display = "block";
+    // HUD mobile só em dispositivo com toque real (pointer coarse). Em
+    // desktop o painel fica POR CIMA do canto superior esquerdo do jogo
+    // (coordenadas / helper) — o usuário via isso como "UI quebrada".
+    var isTouch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+    hudEl.style.display = isTouch ? "block" : "none";
   }
 
   // ---------- boot ----------

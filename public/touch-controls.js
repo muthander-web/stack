@@ -433,7 +433,13 @@
   // ------------------------------------------------------------------
   function updateVisibility() {
     if (!root) return;
-    root.style.display = window.innerWidth < SHOW_BELOW_WIDTH ? "block" : "none";
+    // Overlay touch só faz sentido em dispositivo com toque real (pointer
+    // coarse). Em desktop (mouse), esconder — senão o joystick e o botão
+    // de ação ficam POR CIMA da hotbar do jogo (cantos inferiores) e o
+    // painel do HUD cobre o topo-esquerdo ("UI quebrada").
+    var isTouch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+    root.style.display =
+      isTouch && window.innerWidth < SHOW_BELOW_WIDTH ? "block" : "none";
   }
 
   // Botão de ataque: toque único = 1 ataque; SEGURAR = ataca a cada
