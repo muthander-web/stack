@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Mu Zord v20260902_uirestore</title>
+    <title>MU Online Web</title>
     <style>
       * {
         margin: 0;
@@ -28,7 +28,7 @@
         transform: translate(-50%, -50%);
         width: 1024px;
         height: 768px;
-        display: none;
+        visibility: hidden;
         cursor: none;
       }
       #info {
@@ -120,13 +120,33 @@
     </div>
 
     <script>
-      var PROXY_WS_URL = "ws://127.0.0.1:7100";
+      var PROXY_WS_URL = (function() {
+        var params = new URLSearchParams(window.location.search);
+        if (params.has("ws")) return params.get("ws");
+        if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
+          return "ws://127.0.0.1:7100";
+        }
+        var proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+        if (!window.location.port || window.location.port === "80" || window.location.port === "443") {
+          return proto + "//" + window.location.host + "/ws";
+        }
+        return proto + "//" + window.location.hostname + ":7100";
+      })();
 
       window.addEventListener('unhandledrejection', function(event) {
         console.error('Unhandled Rejection:', event.promise);
         console.error('Reason:', event.reason);
+        (window.__clientLogs = window.__clientLogs || []).push('[rejection] ' + (event.reason && (event.reason.message || event.reason) || 'unknown') + ' | stack: ' + String(event.reason && event.reason.stack || '').slice(0, 900));
         if (event.reason && event.reason.name === 'ExitStatus') {
           console.error('ExitStatus value:', event.reason.status);
+        }
+      });
+
+      window.addEventListener('error', function(event) {
+        var msg = event && (event.message || (event.error && event.error.message)) || 'unknown error';
+        (window.__clientLogs = window.__clientLogs || []).push('[pageerror] ' + msg + (event && event.filename ? ' @' + event.filename + ':' + event.lineno : ''));
+        if (event && event.error && event.error.stack) {
+          (window.__clientLogs = window.__clientLogs || []).push('[pageerror-stack] ' + String(event.error.stack).slice(0, 800));
         }
       });
 
@@ -134,18 +154,32 @@
         diag: /[?&]diag(?:=|&|$)/.test(window.location.search),
 
         locateFile: function(path, prefix) {
-          if (path.endsWith('.data')) return path + '?v=20260815_gaiolas3';
-          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260902_uirestore';
+          if (path.endsWith('.data')) return path + '?v=20260908_raf';
+          if (path.endsWith('.wasm')) return 'Main.wasm?v=20260908_raf2';
           return prefix + path;
         },
         canvas: document.getElementById("canvas"),
+        webglContextAttributes: {
+          alpha: false,
+          depth: true,
+          stencil: true,
+          antialias: false,
+          premultipliedAlpha: false,
+          preserveDrawingBuffer: false,
+          powerPreference: "default",
+          failIfMajorPerformanceCaveat: false,
+          majorVersion: 2,
+          minorVersion: 0
+        },
 
         websocket: { url: PROXY_WS_URL },
 
         print: function (t) {
+          (window.__clientLogs = window.__clientLogs || []).push('[out] ' + t);
           console.log(t);
         },
         printErr: function (t) {
+          (window.__clientLogs = window.__clientLogs || []).push('[err] ' + t);
           console.error(t);
         },
 
@@ -178,9 +212,11 @@
         },
 
         onRuntimeInitialized: function () {
-  document.getElementById("info").style.display = "none";
-  document.getElementById("canvas").style.display = "block";
-  console.log("[OpenMU] WASM runtime initialized");
+          document.getElementById("info").style.display = "none";
+          var c = document.getElementById("canvas");
+          c.style.visibility = "visible";
+          c.style.display = "block";
+          console.log("[OpenMU] WASM runtime initialized");
   requestAnimationFrame(function () {
     gameReady = true;
     fitGameCanvas();
@@ -236,10 +272,11 @@
       });
     </script>
 
-    <script async src="Main.js?v=20260902_uirestore"></script>
-    <script>console.log("[Mu Zord] build 20260902_uirestore — se nao ve esta linha no console, recarregue com Ctrl+Shift+R (cache antigo)");</script>
+    <script async src="Main.js?v=20260908_raf2"></script>
+    <script>console.log("[OpenMU] Web Client initialized");</script>
     <script src="hud-mobile.js?v=20260809m7"></script>
     <script src="touch-controls.js?v=20260810m9"></script>
     <script src="click-to-walk.js?v=20260815_ancora2"></script>
+    <script src="mobile-input-helper.js?v=20260903_hudfixed"></script>
   </body>
 </html>

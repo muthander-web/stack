@@ -1,5 +1,5 @@
 // ============================================================
-// Mu Zord — Touch Controls (joystick virtual + botão de ataque)
+// Touch Controls (joystick virtual + botão de ataque)
 // Segunda peça da UI mobile, isolada e testável.
 //
 // - Joystick fixo no canto inferior esquerdo (arrastar = andar).

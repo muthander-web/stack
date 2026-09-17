@@ -1,5 +1,5 @@
 // ============================================================
-// Mu Zord — HUD mobile (somente leitura)
+// HUD mobile (somente leitura)
 // Primeira peça da UI mobile: mostra nome, level e barras de
 // HP/MP no canto superior. NÃO tem joystick, inventário, modal
 // de NPC, captura de toque nem qualquer controle de ação.

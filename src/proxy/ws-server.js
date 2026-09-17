@@ -58,6 +58,40 @@ function traceNpc(tag, dir, packet) {
   }
 }
 
+// The proxy runs behind nginx, which in turn runs behind Cloudflare, so neither
+// req.socket.remoteAddress nor X-Real-IP identifies the player:
+//   - req.socket.remoteAddress is always nginx's loopback address
+//   - X-Real-IP is nginx's $remote_addr, i.e. the Cloudflare edge, which an
+//     entire region shares (observed: 172.64.222.25) - keying on it would
+//     collapse unrelated players into one queue
+//
+// Order therefore matters:
+//   1. CF-Connecting-IP - set by Cloudflare itself from the real peer
+//   2. X-Forwarded-For   - nginx builds it with $proxy_add_x_forwarded_for, so
+//                          the *first* entry is the player seen by the outermost hop
+//   3. X-Real-IP / socket - only meaningful without a proxy chain (local dev)
+//
+// These headers are client-controllable whenever the origin is hit directly, so
+// the key is good for session affinity only - never for trust or identity.
+function getClientKey(req) {
+  const cfConnectingIp = req.headers["cf-connecting-ip"];
+  if (cfConnectingIp) {
+    return `cf:${String(cfConnectingIp).trim()}`;
+  }
+
+  const forwardedFor = req.headers["x-forwarded-for"];
+  if (forwardedFor) {
+    return `xff:${String(forwardedFor).split(",")[0].trim()}`;
+  }
+
+  const realIp = req.headers["x-real-ip"];
+  if (realIp) {
+    return `xri:${String(realIp).trim()}`;
+  }
+
+  return `sock:${req.socket.remoteAddress || "unknown"}`;
+}
+
 function createProxyServer(config) {
   const {
     wsPort,
@@ -67,34 +101,92 @@ function createProxyServer(config) {
     gameHost,
     proxyPublicHost,
     proxyPublicPort,
+    sessionTtlMs,
+    maxTargetsPerKey,
   } = config;
 
-  // ConnectionInfo (F4 03) redirects are stored per client IP so the next
-  // WebSocket connection from that IP routes to the correct game server port
-  const sessionTargets = new Map();
+  // ConnectionInfo (F4 03) redirects, queued per client. The client cannot send
+  // a token (its WebSocket URL is fixed and cached), so a redirect is matched to
+  // the next connection from the same client. FIFO order is what makes several
+  // players behind one NAT work: each requests its info and immediately
+  // reconnects, so the queue order matches their reconnect order.
+  const sessionTargets = new Map(); // key -> [{ host, port, expiresAt }]
+
+  function armTarget(key, target) {
+    const now = Date.now();
+    const queue = sessionTargets.get(key) || [];
+    while (queue.length > 0 && queue[0].expiresAt <= now) {
+      queue.shift();
+    }
+
+    queue.push({ ...target, expiresAt: now + sessionTtlMs });
+    while (queue.length > maxTargetsPerKey) {
+      queue.shift();
+    }
+
+    sessionTargets.set(key, queue);
+  }
+
+  function takeTarget(key) {
+    const now = Date.now();
+    const queue = sessionTargets.get(key);
+    if (!queue) {
+      return null;
+    }
+
+    while (queue.length > 0 && queue[0].expiresAt <= now) {
+      queue.shift();
+    }
+
+    const target = queue.shift() || null;
+    if (queue.length === 0) {
+      sessionTargets.delete(key);
+    }
+
+    return target;
+  }
+
+  // Expired entries would otherwise keep the map growing forever for clients
+  // that never opened their follow-up connection.
+  const purgeTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [key, queue] of sessionTargets) {
+      while (queue.length > 0 && queue[0].expiresAt <= now) {
+        queue.shift();
+      }
+      if (queue.length === 0) {
+        sessionTargets.delete(key);
+      }
+    }
+  }, Math.max(1000, sessionTtlMs));
+  purgeTimer.unref?.();
 
   const wss = new WebSocketServer({
     port: wsPort,
     host: wsHost,
     perMessageDeflate: false,
   });
-  console.log(`[WS] Proxy listening on ws://${wsHost}:${wsPort}`);
+
+  // Log on the actual 'listening' event. Logging right after the constructor
+  // (which is what this used to do) printed "listening" even when the bind then
+  // failed, so a proxy that was serving nothing looked healthy.
+  wss.on("listening", () => {
+    console.log(`[WS] Proxy listening on ws://${wsHost}:${wsPort}`);
+  });
 
   let connectionId = 0;
 
   wss.on("connection", (ws, req) => {
     const id = ++connectionId;
-    const clientIp = req.socket.remoteAddress;
+    const sessionKey = getClientKey(req);
     const tag = `conn#${id}`;
 
-    console.log(`[WS:${tag}] New connection from ${clientIp}`);
+    console.log(`[WS:${tag}] New connection from ${sessionKey}`);
 
-    const sessionKey = clientIp;
+    const target = takeTarget(sessionKey);
     let tcpHost, tcpPort;
 
-    if (sessionTargets.has(sessionKey)) {
-      const target = sessionTargets.get(sessionKey);
-      sessionTargets.delete(sessionKey);
+    if (target) {
       tcpHost = target.host;
       tcpPort = target.port;
       console.log(
@@ -145,9 +237,9 @@ function createProxyServer(config) {
 
       if (result.rewritten && result.gameServerTarget) {
         console.log(
-          `[${tag}] Game server redirect: ${result.gameServerTarget.host}:${result.gameServerTarget.port}`,
+          `[${tag}] Game server redirect armed for ${sessionKey}: ${result.gameServerTarget.host}:${result.gameServerTarget.port}`,
         );
-        sessionTargets.set(sessionKey, result.gameServerTarget);
+        armTarget(sessionKey, result.gameServerTarget);
       }
 
       try {
@@ -224,6 +316,14 @@ function createProxyServer(config) {
 
   wss.on("error", (err) => {
     console.error(`[WS] Server error: ${err.message}`);
+
+    // A failed bind (e.g. the port is still held by the previous instance) leaves
+    // this process alive but serving nothing, and it looks healthy from outside.
+    // Exit instead, so the supervisor restarts it once the port is free.
+    if (err.syscall === "listen" || err.code === "EADDRINUSE") {
+      console.error("[WS] Fatal: could not bind the proxy port, exiting");
+      process.exit(1);
+    }
   });
 
   return wss;
