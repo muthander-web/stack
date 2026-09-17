@@ -16,3 +16,6 @@ Thumbs.db
 
 # Cloned client repositories (for local analysis only)
 clients/
+
+# Repositorio git antigo (arquivado)
+.git_disabled/
